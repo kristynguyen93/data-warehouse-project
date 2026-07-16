@@ -29,8 +29,8 @@ crm_prd_info - Contains information about the product
         - check if prd_end_dt is after prd_start_dt
         - check if date is valid - must be 8 char
 
-cst_sales_details - Contains information on sales/orders
-    sls_ord_num - primary key
+crm_sales_details - Contains information on sales/orders
+    sls_ord_num
     sls_prd_key - foreign key to prd_key in crm_prd_info
     sls_cust_id - foreign key to cst_id in crm_cust_info
     sls_order_dt
@@ -44,6 +44,7 @@ cst_sales_details - Contains information on sales/orders
         - sls_prd_key must exist in crm_prd_info - prd_key
         - sls_cst_id must exist in crm_cust_info - cst_id
         - sls_order_dt, sls_due_dt, sls_due_dt check for 0 or negatives, check if date is valid - must be 8 char, check if sls_order_dt<= sls_due_dt <= sls_due_dt
+        - sls_sales = sls_quantity * sls_price
 
 erp_cust_az12
     cid - foreign key to cst_key in crm_cust_info
@@ -68,3 +69,8 @@ erp_px_cat_g1v2
 
     -- Things to check:
         - id = crm_prd_info cat_id
+
+
+Star/Snowflake Schema:
+
+Fact table: crm_sales_details

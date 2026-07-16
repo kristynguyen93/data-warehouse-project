@@ -30,7 +30,7 @@ BEGIN
             ROW_NUMBER() OVER (PARTITION BY cst_id ORDER BY cst_create_date DESC) AS rank
             FROM bronze.crm_cust_info
         ) rownumbered
-        WHERE rank = 1 
+        WHERE rank = 1
         ) 
     SELECT cst_id, -- Remove duplicates based on cst_id, keeping the most recent record based on cst
         cst_key,
@@ -48,6 +48,7 @@ BEGIN
         END AS cst_gndr, -- Convert cst_gndr to more readable formats
         cst_create_date
     FROM no_duplicates
+    WHERE cst_id IS NOT NULL
     ORDER BY cst_id;
     v_end_time := clock_timestamp();
     RAISE NOTICE '>> Done in % seconds', EXTRACT(EPOCH FROM (v_end_time - v_start_time));
