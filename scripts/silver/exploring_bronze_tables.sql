@@ -84,29 +84,26 @@ LEAD(prd_start_dt) OVER (PARTITION BY prd_key ORDER BY prd_start_dt)-1 AS prd_en
 FROM bronze.crm_prd_info
 
 -- Exploring crm_sales_details
-
-SELECT 
-    sls_ord_num,
-    sls_prd_key,
-    sls_cust_id,
-    CASE WHEN sls_order_dt = 0 OR LENGTH(sls_order_dt) != 8 THEN NULL
-         ELSE TO_DATE(sls_order_dt, 'YYYYMMDD')
-    END AS sls_order_dt,
-    CASE WHEN sls_ship_dt = 0 OR LENGTH(sls_ship_dt) != 8 THEN NULL
-         ELSE TO_DATE(sls_ship_dt, 'YYYYMMDD')
-    END AS sls_ship_dt,
-    CASE WHEN sls_due_dt = 0 OR LENGTH(sls_due_dt) != 8 THEN NULL
-         ELSE TO_DATE(sls_due_dt, 'YYYYMMDD')
-    END AS sls_due_dt,
-    CASE WHEN sls_sales::numeric <= 0 OR sls_sales::numeric != (sls_quantity::numeric * sls_price::numeric) OR sls_sales IS NULL THEN ABS(sls_quantity::numeric * sls_price::numeric)
-    ELSE sls_sales::numeric
-    END AS sls_sales,
-    sls_quantity,
-    sls_price
-FROM bronze.crm_sales_details
-
+WITH cleaned_sales AS (
+    SELECT 
+        sls_ord_num,
+        sls_prd_key,
+        sls_cust_id,
+        sls_order_dt,
+        sls_ship_dt,
+        sls_due_dt,
+        CASE WHEN sls_sales::numeric <= 0 OR sls_sales::numeric != (sls_quantity::numeric * sls_price::numeric) OR sls_sales IS NULL 
+            THEN ABS(sls_quantity::numeric * sls_price::numeric)
+        ELSE sls_sales::numeric
+        END AS sls_sales,
+        sls_quantity,
+        CASE WHEN sls_price::numeric <= 0 OR sls_price IS NULL
+            THEN ABS(sls_sales::numeric / NULLIF(sls_quantity::numeric, 0))
+        ELSE sls_price END AS sls_price
+    FROM bronze.crm_sales_details
+)
 SELECT sls_ord_num, sls_quantity, sls_price, sls_sales, (sls_quantity * sls_price) AS total_sales
-FROM bronze.crm_sales_details
+FROM cleaned_sales
 WHERE sls_sales::numeric != (sls_quantity * sls_price)::numeric
     OR sls_sales IS NULL
     OR sls_quantity IS NULL
@@ -115,3 +112,58 @@ WHERE sls_sales::numeric != (sls_quantity * sls_price)::numeric
     OR sls_quantity::numeric <= 0
     OR sls_price::numeric <= 0
 ORDER BY sls_ord_num
+
+
+
+-- Exploring erp_cust_az12
+SELECT *
+FROM bronze.erp_cust_az12
+
+SELECT *
+FROM bronze.crm_cust_info
+
+SELECT *
+FROM bronze.erp_cust_az12
+WHERE EXTRACT(YEAR FROM bdate) < 1926 OR bdate > NOW()
+
+SELECT DISTINCT gen
+FROM bronze.erp_cust_az12
+
+SELECT CASE WHEN cid LIKE 'NAS%' THEN SUBSTRING(cid, 4, LENGTH(cid)) 
+    ELSE cid END AS cid, -- Removing 'NAS' prefix from cid values
+    CASE WHEN bdate > NOW() THEN NULL ELSE bdate END AS bdate, -- Setting bdate to NULL if it is in the future
+    CASE WHEN UPPER(TRIM(gen)) IN ('M', 'MALE') THEN 'Male'
+        WHEN UPPER(TRIM(gen)) IN ('F', 'FEMALE') THEN 'Female'
+        ELSE 'Unknown' END AS gen -- Converting gen values to more readable formats
+FROM bronze.erp_cust_az12
+
+SELECT *
+FROM bronze.erp_loc_a101
+
+SELECT DISTINCT cntry
+FROM bronze.erp_loc_a101
+
+/* 
+    There are various smellings / abreviations for country names. We will replace them with the full country name in the silver layer.
+
+    Australia -> Australia
+    Germany -> Germany
+    DE -> Germany
+    United States -> United States
+    US -> United States
+    USA -> United States
+    France -> France
+    United Kingdom -> United Kingdom
+    Canada -> Canada
+    NULL and empty strings will be replaced with 'Unknown'
+*/
+
+SELECT REPLACE(cid, '-', '') AS cid,
+    CASE WHEN TRIM(cntry) = 'DE' THEN 'Germany'
+         WHEN TRIM(cntry) IN ('US', 'USA') THEN 'United States'
+         WHEN TRIM(cntry) = '' OR cntry IS NULL THEN 'Unknown'
+         ELSE TRIM(cntry) END AS cntry
+FROM bronze.erp_loc_a101
+
+SELECT *
+FROM bronze.erp_px_cat_g1v2

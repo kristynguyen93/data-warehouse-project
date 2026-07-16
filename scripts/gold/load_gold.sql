@@ -3,7 +3,7 @@
 
 */
 DROP VIEW IF EXISTS gold.dim_customers;
-CREATE VIEW gold.dim_customer AS
+CREATE VIEW gold.dim_customers AS
     SELECT
         ROW_NUMBER() OVER (ORDER BY cst_id) AS customer_key,
         ci.cst_id AS customer_id,
@@ -20,7 +20,7 @@ CREATE VIEW gold.dim_customer AS
     LEFT JOIN silver.erp_cust_az12 ca 
     ON ci.cst_key = ca.cid
     LEFT JOIN silver.erp_loc_a101 la
-    ON ci.cst_key = la.cid
+    ON ci.cst_key = la.cid;
 
 DROP VIEW IF EXISTS gold.dim_products;
 CREATE VIEW gold.dim_products AS
@@ -39,7 +39,7 @@ CREATE VIEW gold.dim_products AS
     FROM silver.crm_prd_info p
     LEFT JOIN silver.erp_px_cat_g1v2 e
     ON p.cat_id = e.id
-    WHERE p.prd_end_dt IS NULL -- Only include products that are currently active (end date is null)
+    WHERE p.prd_end_dt IS NULL; -- Only include products that are currently active (end date is null)
 
 DROP VIEW IF EXISTS gold.fact_sales;
 CREATE VIEW gold.fact_sales AS
@@ -57,5 +57,5 @@ CREATE VIEW gold.fact_sales AS
     FROM silver.crm_sales_details s
     LEFT JOIN gold.dim_products p
     ON s.sls_prd_key = p.product_number
-    LEFT JOIN gold.dim_customer c
-    ON s.sls_cust_id = c.customer_id
+    LEFT JOIN gold.dim_customers c
+    ON s.sls_cust_id = c.customer_id;
